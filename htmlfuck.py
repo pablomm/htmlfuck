@@ -1,11 +1,19 @@
+#!/usr/bin/python
+
 from __future__ import print_function
 
-from math import copysign, ceil, floor, sqrt
+import argparse
 import random
 import requests
+
+from sys import exit
 from StringIO import StringIO
 from PIL import Image
+from math import copysign, ceil, floor, sqrt
 
+__author__ = "Pablo Marcos"
+__message__ = "Generated using htmlfuck - Pablo Marcos"
+__description__ = "Create an html image an hide a text in brainfuck code."
 
 """
 TODO
@@ -18,11 +26,16 @@ getopt
 Documentacion
 """
 
-
 def get_rgb_image(img_name, size):
-	
-	im = Image.open(img_name)
-
+	"""
+	Return a matrix with the input size with
+	the rgb values of the image
+	"""
+	try:
+		im = Image.open(img_name)
+	except IOError:
+		print("Error opening image file: %s" % img_name)
+		exit(2)
 
 	im_resized = im.resize(size, Image.ANTIALIAS)
 
@@ -31,6 +44,10 @@ def get_rgb_image(img_name, size):
 
 
 def get_random_vector(alphabet, size):
+	"""
+	Return a list of length x*y where size = (x,y)
+	initializated with pseudorandom values of the alphabet
+	"""
 	x, y = size
 	vector = [random.choice(alphabet) for _ in xrange(x*y)]
 
@@ -38,7 +55,10 @@ def get_random_vector(alphabet, size):
 
 
 def hide_positions(vector_len, text_len):
-
+	""" 
+	Return a list of length text_len with not 
+	repeated random values in the range vector_len
+	"""
 	positions = range(vector_len)
 	random.shuffle(positions)
 
@@ -48,26 +68,35 @@ def hide_positions(vector_len, text_len):
 	return positions
 
 def hide_text(vector, text):
-
+	"""
+	Hide the text in random positions of the vector
+	and return a list
+	"""
 	positions = hide_positions(len(vector), len(text))
 
 	j=0
 	for i in positions:
 		vector[i] = text[j]	
-		j = j+1
+		j += 1
 
 	return vector
 
 def write_header(file, font_size=None):
+	""" Write the html tags before the image """
 	style = "" if font_size== None else " style='font-size: %dpx'" % font_size
-	file.write("<center>\n\t<!-- Pablo Marcos - 2017 -->\n\t<pre%s>" % style)
+	file.write("<center>\n\t<!-- %s -->\n\t<pre%s>" % (__message__,style))
+
 
 def write_span(file, rgb, text):
+	""" Writes a span with the rgb color and the text """
 	hexcolor = '#%02x%02x%02x' % rgb
 	file.write("<span style='color: %s;'>%s</span>" % (hexcolor,text))
 
+
 def write_footer(file):
+	""" Write the html tags after the image """
 	file.write("</pre>\n</center>")
+
 
 def write_span_line(size_x,y,file,vector,img):
 	back = size_x * y
@@ -76,14 +105,15 @@ def write_span_line(size_x,y,file,vector,img):
 		text = str(vector[back + x])
 		while x < size_x-1:
 			if img[x,y] == img[x+1,y]:
-				x = x+1
+				x += 1
 				text = str(vector[back + x])
 			else:
 				break
 				
 		write_span(file,img[x,y],text)
 
-	file.write("<br />")	
+	file.write("<br/>")	
+
 
 def write_html_document(filename, img, vector, size,font_size=None):
 	 
@@ -95,7 +125,7 @@ def write_html_document(filename, img, vector, size,font_size=None):
 	 	for y in xrange(size_y):
 	 		for x in xrange(size_x):
 	 			write_span(file,img[x,y],vector[y*size_x + x])
-	 		file.write("<br />")
+	 		file.write("<br/>")
 
 	 	write_footer(file)
 
@@ -115,6 +145,8 @@ def generate_html_image(img_path, file_name, alphabet, text, size,font_size=None
 
 
 def bf_num(n):
+	""" Return brainfuck code that adds n """
+
 	code = ""
 	c = "+" if copysign(1,n) == 1 else "-"
 
@@ -124,44 +156,56 @@ def bf_num(n):
 	return code
 
 def bf_mult(x,y):
+	""" Return the brainfuck code of x*y """
 
 	code = bf_num(abs(x))
-	code = code + "[>"
-	code = code + bf_num(int(copysign(1,x*y))*abs(y))
-	code = code + "<-]>"
+	code += "[>"
+	code += bf_num(int(copysign(1,x*y))*abs(y))
+	code += "<-]>"
 
 	return code
 
 def bf_tuple(x,y,z,pos=2):
-	# x*y+z.x,y != 0
+	"""
+	Return brainfuck code that sum x*y+z to the second
+	position of the tape and print the final value.
+	The position 1 have to be 0. The pointer final state
+	is 2. The initial state can be 1 or 2.
+
+	pos: the initial position of the pointer (default 2)
+	"""
 
 	code = ""
 
 	if y == 1:
 		if pos == 1:
-			code = code + ">"
+			code += ">"
 		code = code + bf_num(x)
 	else:
 		if pos == 2:
-			code = code + "<"
+			code += "<"
 
-		code = code + bf_mult(x,y)
+		code += bf_mult(x,y)
 
-	code = code + bf_num(z)
-	code = code + "."
+	code += bf_num(z) + "."
 
 	return code
 
 def get_tuple(n,pos=2):
 	"""
-	We look for x,y,z which n = x*y + z
-	And minimizes x + y + z + 4 if x,y != 0
-	and  x + y + z if x,y == 0
-	over the integers. 
+	Return brainfuck code that sum n to the second 
+	brainfuck cell and print the value.
 
-	Thats a dummy algorithm, only optimal for perfect
-	squares and first numbers
+	For n>9 the problem consist in find x,y,z
+	that minimizes x + y + z over the integers with
+	x*y+z = n
+
+	Thats a poor implementation, only optimal for perfect
+	squares in general, takes x,y the numbers nearest to the
+	square root of n and z = n - x*y, with the special case when
+	the loop is not needed
 	"""
+
 	absn = abs(n)
 	sign = int(copysign(1,n))
 	sq = sqrt(absn)
@@ -175,7 +219,10 @@ def get_tuple(n,pos=2):
 	return bf_tuple(x,sign*y,sign*z,pos)
 
 def brainfuck_ascii(text):
-	
+	"""
+	Return brainfuck code that prints the input text.
+	The text has to be pure ascii.
+	"""
 
 	if len(text) <1:
 		return ""
@@ -193,17 +240,49 @@ def brainfuck_ascii(text):
 
 	return code
 
-def example():
 
-	size = 100, 50
-	alphabet = ";:()$!#="
-	hide_text = brainfuck_ascii("Pablo Marcos")
-	url = "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcS6BJwWAtk99_LCtIIHGcjV3pfKopdRow0nGWK_BrTnya7v_4c3"
-	font_size = 11
-	is_url = True
+def html_brainfuck(image,file, alphabet, text,size,font_size, is_url, clear,text_file):
 
-	generate_html_image(url, "test.html", alphabet, hide_text, size, font_size, is_url)
+	if text_file:
+		try:
+			tfile = open(text_file)
+			text = tfile.read()
+		except IOError:
+			print("Error opening text file: %s" % text_file)
+			exit(2)
+			
+
+	if not text:
+		text = ""
+	else:
+		hide_text = text if clear else brainfuck_ascii(text)
+
+	generate_html_image(image, file, alphabet, hide_text, size, font_size, is_url)
+
+def main():
+	parser = argparse.ArgumentParser(description=__description__)
+	parser.add_argument('image', help='image path/url')
+	parser.add_argument('file', help='output file')
+	parser.add_argument('x', help="width of image in characters", type=int)
+	parser.add_argument('y', help="height of image in characters", type=int)
+	parser.add_argument('alphabet', help="alphabet")
+	parser.add_argument("-u","--url", help="download image from url", action="store_true")
+	parser.add_argument("-c","--clear", help="dont use brainfuck to hide the text", action="store_true")
+	parser.add_argument("-f","--font", help="font size in px", type=int)
+	parser.add_argument("-t","--text", help="text to hide")
+	parser.add_argument("-tf","--textfile", help="file with text to hide")
+
+	args = parser.parse_args()
+
+	if args.text and  args.textfile:
+		print("--text and --textfile are mutually exclusive ...")
+		exit(2)
+
+	size = args.x, args.y
+
+	html_brainfuck(args.image,args.file, args.alphabet, args.text, size,args.font, args.url, args.clear,args.textfile)
+	
 
 if __name__ == "__main__":
-	example()
+	main()
 
