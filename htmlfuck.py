@@ -50,6 +50,10 @@ def hide_positions(vector_len, text_len):
 	Return a list of length text_len with not 
 	repeated random values in the range vector_len
 	"""
+	if text_len > vector_len:
+		print("ERROR: text too long, increase the characters of the image to encode the text (%d at least)" % text_len)
+		exit(2)
+
 	positions = range(vector_len)
 	random.shuffle(positions)
 
@@ -245,7 +249,7 @@ def brainfuck_ascii(text):
 
 def html_brainfuck(image,file, alphabet, text, x, y,font_size, is_url, clear,text_file):
 	""" Generate the image with the arguments given by argparse """
-	
+
 	size = x,y
 
 	if text_file:
