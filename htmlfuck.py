@@ -6,25 +6,16 @@ import argparse
 import random
 import requests
 
-from sys import exit
+from math import ceil, copysign, floor, sqrt
 from StringIO import StringIO
+from sys import exit
 from PIL import Image
-from math import copysign, ceil, floor, sqrt
+
 
 __author__ = "Pablo Marcos"
-__message__ = "Generated using htmlfuck - Pablo Marcos"
+__message__ = "Generated using HtmlFuck - Pablo Marcos"
 __description__ = "Create an html image an hide a text in brainfuck code."
 
-"""
-TODO
-Buscar coeficiente font-size ~ size en pixeles
-Agrupar spans vecinos con mismo color (funcion a medio hacer)
-Permitir que size sea un argumento opcional tomando el original de la imagen en su lugar
-Control de excepciones/ errores
-Mejorar funcion genera codigo brainfuck
-getopt
-Documentacion
-"""
 
 def get_rgb_image(img_name, size):
 	"""
@@ -34,7 +25,7 @@ def get_rgb_image(img_name, size):
 	try:
 		im = Image.open(img_name)
 	except IOError:
-		print("Error opening image file: %s" % img_name)
+		print("ERROR: can't open image file: %s" % img_name)
 		exit(2)
 
 	im_resized = im.resize(size, Image.ANTIALIAS)
@@ -99,44 +90,55 @@ def write_footer(file):
 
 
 def write_span_line(size_x,y,file,vector,img):
-	back = size_x * y
-	x=0
-	while x < size_x:
-		text = str(vector[back + x])
-		while x < size_x-1:
-			if img[x,y] == img[x+1,y]:
-				x += 1
-				text = str(vector[back + x])
+	""" Write a line of the picture grouping adjacent colors """
+	i = 0
+	while i < size_x:
+		text = vector[y*size_x + i]
+		i += 1
+		while i < size_x:
+			if img[i-1,y] == img[i,y]:
+				text += vector[y*size_x + i]
+				i += 1
 			else:
 				break
-				
-		write_span(file,img[x,y],text)
 
-	file.write("<br/>")	
+		write_span(file,img[i-1,y],text)
+
+	file.write("<br/>")
 
 
 def write_html_document(filename, img, vector, size,font_size=None):
-	 
+	""" Writes de html document """
 	size_x, size_y = size
 
 	with open(filename,"w") as file:
-	 	write_header(file,font_size)
+		write_header(file,font_size)
 
-	 	for y in xrange(size_y):
-	 		for x in xrange(size_x):
-	 			write_span(file,img[x,y],vector[y*size_x + x])
-	 		file.write("<br/>")
+		for y in xrange(size_y):
+	 		write_span_line(size_x,y,file,vector,img)
 
-	 	write_footer(file)
+		write_footer(file)
 
 def parse_url(path,is_url):
+	""" 
+	Downloads the image from the url if needed,
+	return an object to be open by PIL 
+	"""
 	if not is_url:
 		return path
 	else:
-		response = requests.get(path)
-		return StringIO(response.content)
+
+		try:
+			response = requests.get(path)
+			obj = StringIO(response.content)
+		except IOError:
+			print("ERROR: can't download the image from url %s" % path)
+			exit(2)
+
+		return obj
 
 def generate_html_image(img_path, file_name, alphabet, text, size,font_size=None, is_url=False):
+	""" Call all the functions relatives on the generation of the html image """
 	img_name = parse_url(img_path, is_url)
 	img = get_rgb_image(img_name, size)
 	vector = hide_text(get_random_vector(alphabet, size) ,text)
@@ -180,7 +182,7 @@ def bf_tuple(x,y,z,pos=2):
 	if y == 1:
 		if pos == 1:
 			code += ">"
-		code = code + bf_num(x)
+		code += bf_num(x)
 	else:
 		if pos == 2:
 			code += "<"
@@ -241,25 +243,35 @@ def brainfuck_ascii(text):
 	return code
 
 
-def html_brainfuck(image,file, alphabet, text,size,font_size, is_url, clear,text_file):
+def html_brainfuck(image,file, alphabet, text, x, y,font_size, is_url, clear,text_file):
+	""" Generate the image with the arguments given by argparse """
+	
+	size = x,y
 
 	if text_file:
 		try:
 			tfile = open(text_file)
 			text = tfile.read()
 		except IOError:
-			print("Error opening text file: %s" % text_file)
+			print("ERROR: can't open text file: %s" % text_file)
 			exit(2)
-			
 
 	if not text:
-		text = ""
+		hide_text = ""
 	else:
 		hide_text = text if clear else brainfuck_ascii(text)
 
+	if any(True for x in alphabet if x in ".,[]<>-+"):
+		print("WARNING: your alphabet contains brainfuck characters")
+
 	generate_html_image(image, file, alphabet, hide_text, size, font_size, is_url)
 
+
 def main():
+	"""
+	Main function
+	Parse the arguments given and show the usage
+	"""
 	parser = argparse.ArgumentParser(description=__description__)
 	parser.add_argument('image', help='image path/url')
 	parser.add_argument('file', help='output file')
@@ -275,12 +287,11 @@ def main():
 	args = parser.parse_args()
 
 	if args.text and  args.textfile:
-		print("--text and --textfile are mutually exclusive ...")
+		print("ERROR: --text and --textfile are mutually exclusive ...")
 		exit(2)
 
-	size = args.x, args.y
-
-	html_brainfuck(args.image,args.file, args.alphabet, args.text, size,args.font, args.url, args.clear,args.textfile)
+	html_brainfuck(args.image,args.file, args.alphabet, 
+		args.text, args.x, args.y,args.font, args.url, args.clear,args.textfile)
 	
 
 if __name__ == "__main__":
