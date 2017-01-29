@@ -288,12 +288,12 @@ def main():
 	parser.add_argument('file', help='output file')
 	parser.add_argument('x', help="width of image in characters", type=int)
 	parser.add_argument('y', help="height of image in characters", type=int)
-	parser.add_argument('alphabet', help="alphabet")
 	parser.add_argument("-u","--url", help="download image from url", action="store_true")
 	parser.add_argument("-c","--clear", help="dont use brainfuck to hide the text", action="store_true")
 	parser.add_argument("-f","--font", help="font size in px", type=int)
 	parser.add_argument("-t","--text", help="text to hide")
 	parser.add_argument("-tf","--textfile", help="file with text to hide")
+	parser.add_argument("-a",'--alphabet', help="characters to build the image", default="@#$%()/*")
 
 	args = parser.parse_args()
 
@@ -307,4 +307,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
