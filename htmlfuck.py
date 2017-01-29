@@ -6,6 +6,7 @@ import argparse
 import random
 import requests
 
+from cgi import escape
 from math import ceil, copysign, floor, sqrt
 from StringIO import StringIO
 from sys import exit
@@ -24,11 +25,12 @@ def get_rgb_image(img_name, size):
 	"""
 	try:
 		im = Image.open(img_name)
+		im_resized = im.resize(size, Image.ANTIALIAS)
 	except IOError:
 		print("ERROR: can't open image file: %s" % img_name)
 		exit(2)
 
-	im_resized = im.resize(size, Image.ANTIALIAS)
+
 
 	return im_resized.convert('RGB').load()
 
@@ -93,6 +95,11 @@ def write_footer(file):
 	file.write("</pre>\n</center>")
 
 
+def escape_html(text):
+    """escape strings for display in HTML"""
+    return escape(text, quote=True).replace(u'\n', u'&nbsp').replace(u'\t', u'&nbsp').replace(u' ', u'&nbsp;')
+
+
 def write_span_line(size_x,y,file,vector,img):
 	""" Write a line of the picture grouping adjacent colors """
 	i = 0
@@ -106,7 +113,7 @@ def write_span_line(size_x,y,file,vector,img):
 			else:
 				break
 
-		write_span(file,img[i-1,y],text)
+		write_span(file,img[i-1,y],escape_html(text))
 
 	file.write("<br/>")
 
