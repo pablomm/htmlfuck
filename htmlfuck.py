@@ -7,10 +7,16 @@ import random
 import requests
 
 from cgi import escape
-from math import ceil, copysign, floor, sqrt
-from StringIO import StringIO
+from math import ceil, copysign, sqrt
 from sys import exit
 from PIL import Image
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
+
 
 
 __author__ = "Pablo Marcos"
@@ -204,32 +210,51 @@ def bf_tuple(x,y,z,pos=2):
 
 	return code
 
+
+def terna(n):
+	"""
+	Return the optimal representation of n>0
+	that minimizes |x|+|y|+|z| with n = x*y+z
+	"""
+
+	absn = abs(n)
+	sq = int(ceil(sqrt(absn)))
+	
+
+	x = 0
+	y = 0
+	z = absn
+	peso = absn
+
+	for i in range(sq,1,-1):
+		for j in range(sq,1,-1):
+			k = absn - i*j
+
+			if i + j + abs(k) <= peso:
+				peso = i + j + abs(k)
+				x = i
+				y = j
+				z = k
+
+	return (x,y,z)
+
 def get_tuple(n,pos=2):
 	"""
 	Return brainfuck code that sum n to the second 
 	brainfuck cell and print the value.
-
-	For n>9 the problem consist in find x,y,z
-	that minimizes x + y + z over the integers with
-	x*y+z = n
-
-	Thats a poor implementation, only optimal for perfect
-	squares in general, takes x,y the numbers nearest to the
-	square root of n and z = n - x*y, with the special case when
-	the loop is not needed
 	"""
-
-	absn = abs(n)
 	sign = int(copysign(1,n))
-	sq = sqrt(absn)
-	x = int(floor(sq))
-	y = int(ceil(sq))
-	z = absn - x*y
 
-	if x + y + z + 5 > absn:
+	x,y,z = terna(n)
+
+	y *= sign
+	z *= sign
+
+
+	if x + abs(y) + abs(z) + 5 > abs(n):
 		return bf_tuple(n,1,0,pos)
 
-	return bf_tuple(x,sign*y,sign*z,pos)
+	return bf_tuple(x,y,z,pos)
 
 def brainfuck_ascii(text):
 	"""
