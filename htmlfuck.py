@@ -4,7 +4,11 @@ from __future__ import print_function
 
 import argparse
 import random
-import requests
+
+try:
+	import requests
+except ImportError:
+	pass
 
 from cgi import escape
 from math import ceil, copysign, sqrt
@@ -20,6 +24,8 @@ except ImportError:
 __author__ = "Pablo Marcos"
 __message__ = "Generated using HtmlFuck - Pablo Marcos"
 __description__ = "Create an html image an hide a text in brainfuck code."
+
+color_list = []
 
 
 def get_rgb_image(img_name, size):
@@ -82,8 +88,15 @@ def hide_text(vector, text):
     return vector
 
 
-def write_header(file, font_size=None):
+def write_header(file, font_size=None, css=False, filename=None):
     """ Write the html tags before the image """
+
+    file.write("<head>\n")
+    if css:
+    	file.write("  <link rel='stylesheet' type='text/css' href='%s.css'>\n" % filename.split(".")[0])
+    file.write("</head>\n<body>\n")
+
+
     style = "" if font_size is None else " style='font-size: %dpx'" % font_size
     file.write("<center>\n\t<!-- %s -->\n\t<pre%s>" % (__message__, style))
 
@@ -93,10 +106,23 @@ def write_span(file, rgb, text):
     hexcolor = '#%02x%02x%02x' % rgb
     file.write("<span style='color: %s;'>%s</span>" % (hexcolor, text))
 
+def write_span_css(file, rgb, text):
+    """ Writes a span with the rgb color and the text """
+    hexcolor = '#%02x%02x%02x' % rgb
+
+    try:
+    	i = color_list.index(hexcolor)
+    except:
+    	color_list.append(hexcolor)
+    	i = len(color_list) - 1
+
+    file.write("<span class='c%d'>%s</span>" % (i, text))
+
 
 def write_footer(file):
     """ Write the html tags after the image """
     file.write("</pre>\n</center>")
+    file.write("\n</body>")
 
 
 def escape_html(text):
@@ -105,7 +131,7 @@ def escape_html(text):
         u'\t', u'&nbsp').replace(u' ', u'&nbsp;')
 
 
-def write_span_line(size_x, y, file, vector, img):
+def write_span_line(size_x, y, file, vector, img, css=False):
     """ Write a line of the picture grouping adjacent colors """
     i = 0
     while i < size_x:
@@ -117,23 +143,40 @@ def write_span_line(size_x, y, file, vector, img):
                 i += 1
             else:
                 break
-
-        write_span(file, img[i - 1, y], escape_html(text))
+        if not css:
+        	write_span(file, img[i - 1, y], escape_html(text))
+        else:
+        	write_span_css(file, img[i - 1, y], escape_html(text))
 
     file.write("<br/>")
 
 
-def write_html_document(filename, img, vector, size, font_size=None):
+def write_html_document(filename, img, vector, size, font_size=None, css=False):
     """ Writes de html document """
     size_x, size_y = size
 
     with open(filename, "w") as file:
-        write_header(file, font_size)
+        write_header(file, font_size, css, filename)
 
         for y in xrange(size_y):
-            write_span_line(size_x, y, file, vector, img)
+            write_span_line(size_x, y, file, vector, img, css)
 
         write_footer(file)
+
+        if css:
+        	write_styles(filename)
+
+def write_styles(filename):
+
+    filename = filename.split(".")[0] + ".css"
+
+    with open(filename, "w") as file:
+
+        file.write("/* Generated using htmlfuck - Pablo Marcos */\n")
+        for i in xrange(len(color_list)):
+            file.write(".c%d{color:%s;}" % (i, color_list[i]))
+
+
 
 
 def parse_url(path, is_url):
@@ -156,12 +199,12 @@ def parse_url(path, is_url):
 
 
 def generate_html_image(img_path, file_name, alphabet,
-                        text, size, font_size=None, is_url=False):
+                        text, size, font_size=None, is_url=False, css=False):
     """ Call all the functions relatives on the generation of the html image """
     img_name = parse_url(img_path, is_url)
     img = get_rgb_image(img_name, size)
     vector = hide_text(get_random_vector(alphabet, size), text)
-    write_html_document(file_name, img, vector, size, font_size)
+    write_html_document(file_name, img, vector, size, font_size, css)
 
 
 def bf_num(n):
@@ -281,7 +324,7 @@ def brainfuck_ascii(text):
 
 
 def html_brainfuck(image, file, alphabet, text, x, y,
-                   font_size, is_url, clear, text_file):
+                   font_size, is_url, clear, text_file, css):
     """ Generate the image with the arguments given by argparse """
 
     size = x, y
@@ -303,7 +346,7 @@ def html_brainfuck(image, file, alphabet, text, x, y,
         print("WARNING: your alphabet contains brainfuck characters")
 
     generate_html_image(image, file, alphabet, hide_text,
-                        size, font_size, is_url)
+                        size, font_size, is_url, css)
 
 
 def main():
@@ -319,6 +362,9 @@ def main():
     parser.add_argument(
         "-u", "--url", help="download image from url", action="store_true")
     parser.add_argument(
+        "-s", "--css", help="Uses css clases instead of inline styles", action="store_true")
+
+    parser.add_argument(
         "-c", "--clear", help="dont use brainfuck to hide the text", action="store_true")
     parser.add_argument("-f", "--font", help="font size in px", type=int)
     parser.add_argument("-t", "--text", help="text to hide")
@@ -333,7 +379,9 @@ def main():
         exit(2)
 
     html_brainfuck(args.image, args.file, args.alphabet,
-                   args.text, args.x, args.y, args.font, args.url, args.clear, args.textfile)
+                   args.text, args.x, args.y, args.font, args.url, args.clear, args.textfile, args.css)
+
+    exit(0)
 
 
 if __name__ == "__main__":
