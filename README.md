@@ -6,10 +6,11 @@ Pablo Marcos - 2017
 
 Usage
 ------------
-
 ```bash
-> ./htmlfuck.py -h
-usage: htmlfuck.py [-h] [-u] [-c] [-f FONT] [-t TEXT] [-tf TEXTFILE]
+> ./htmlfuck.py
+```
+```
+usage: htmlfuck.py [-h] [-u] [-s] [-c] [-f FONT] [-t TEXT] [-tf TEXTFILE]
                    [-a ALPHABET]
                    image file x y
 
@@ -24,6 +25,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -u, --url             download image from url
+  -s, --css             Uses css classes instead of inline styles
   -c, --clear           dont use brainfuck to hide the text
   -f FONT, --font FONT  font size in px
   -t TEXT, --text TEXT  text to hide
